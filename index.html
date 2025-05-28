@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>WS2812远程控制</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    label, input { font-size: 1.2em; }
+    #status { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h2>WS2812远程控制</h2>
+  <label for="colorPicker">选择颜色: </label>
+  <input type="color" id="colorPicker" value="#ff0000" />
+  <button id="sendBtn">发送颜色</button>
+  <div id="status">状态：未连接</div>
+
+  <script>
+    // 请替换成你自己的 HiveMQ Cloud MQTT 凭证
+    const MQTT_USERNAME = 'esp32user';
+    const MQTT_PASSWORD = 'Esp32pass123';
+    const MQTT_BROKER = 'wss://0c46cf130bac4026947b6738eb68608c.s1.eu.hivemq.cloud:8884/mqtt';
+    const MQTT_TOPIC = 'led/control';
+
+    const statusEl = document.getElementById('status');
+    const colorPicker = document.getElementById('colorPicker');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // 连接MQTT
+    const client = mqtt.connect(MQTT_BROKER, {
+      username: MQTT_USERNAME,
+      password: MQTT_PASSWORD,
+      clientId: 'webclient_' + Math.random().toString(16).substr(2, 8),
+      clean: true,
+      connectTimeout: 4000,
+      reconnectPeriod: 4000,
+    });
+
+    client.on('connect', () => {
+      statusEl.textContent = '状态：已连接到MQTT服务器';
+      console.log('MQTT连接成功');
+    });
+
+    client.on('error', (err) => {
+      statusEl.textContent = '状态：连接错误';
+      console.error('MQTT连接错误', err);
+    });
+
+    client.on('reconnect', () => {
+      statusEl.textContent = '状态：正在重连...';
+      console.log('MQTT正在重连...');
+    });
+
+    sendBtn.onclick = () => {
+      const colorHex = colorPicker.value.substring(1).toUpperCase(); // 去掉#并大写
+      const msg = `color:${colorHex}`;
+      client.publish(MQTT_TOPIC, msg, { qos: 0 }, (err) => {
+        if (err) {
+          statusEl.textContent = '状态：发送失败';
+          console.error('发送消息失败', err);
+        } else {
+          statusEl.textContent = `状态：已发送颜色 ${msg}`;
+          console.log('消息已发送:', msg);
+        }
+      });
+    };
+  </script>
+</body>
+</html>
